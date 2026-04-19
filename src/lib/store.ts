@@ -130,6 +130,20 @@ export const items = {
 			return item;
 		});
 		lists.updateItems($activeListId, newItems);
+	},
+	resetComparisons: () => {
+		const $activeListId = get(activeListId);
+		if (!$activeListId) return;
+		const $activeList = get(activeList);
+		if (!$activeList) return;
+
+		const resetItems = $activeList.items.map(item => ({
+			...item,
+			wins: 0,
+			losses: 0,
+			comparisons: {}
+		}));
+		lists.updateItems($activeListId, resetItems);
 	}
 };
 

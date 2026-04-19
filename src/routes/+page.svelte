@@ -4,6 +4,7 @@
 	import type { RankedItem, List } from '$lib/types';
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
+	import { t, locale, setLocale, initLocale } from '$lib/i18n';
 
 	let newItemName = '';
 	let editingItemId: string | null = null;
@@ -14,8 +15,9 @@
 	let editingListId: string | null = null;
 	let editingListName = '';
 
-	// Sync activeListId with query param
+	// Sync activeListId and locale with query param
 	onMount(() => {
+		initLocale();
 		const listId = $page.url.searchParams.get('list');
 		if (listId) {
 			activeListId.set(listId);
@@ -30,6 +32,10 @@
 		} else {
 			url.searchParams.delete('list');
 		}
+		// Preserve lang param if it exists
+		const lang = $page.url.searchParams.get('lang');
+		if (lang) url.searchParams.set('lang', lang);
+		
 		goto(url.pathname + url.search, { replaceState: true, keepFocus: true });
 	}
 
@@ -68,7 +74,7 @@
 	}
 
 	function deleteList(id: string) {
-		if (confirm('Are you sure you want to delete this list?')) {
+		if (confirm($t('list.delete_confirm'))) {
 			lists.deleteList(id);
 			if ($activeListId === id) {
 				setList(null);
@@ -123,6 +129,13 @@
 		}
 	}
 
+	function resetComparisons() {
+		if (confirm($t('compare.reset_confirm'))) {
+			items.resetComparisons();
+			currentComparisonIndex = 0;
+		}
+	}
+
 	const tierColors: Record<string, string> = {
 		S: 'bg-red-500',
 		A: 'bg-orange-400',
@@ -141,21 +154,25 @@
 </script>
 
 <svelte:head>
-	<title>TierDuel - Binary Comparison Tier List</title>
+	<title>{$t('app.title')} - {$t('app.subtitle')}</title>
 </svelte:head>
 
 <div class="min-h-screen bg-base-200">
 	<!-- Header -->
 	<header class="navbar bg-base-100 shadow-md">
-		<div class="navbar-start">
-			<button class="btn btn-ghost text-2xl font-bold text-primary" on:click={() => setList(null)}>⚔️ TierDuel</button>
+		<div class="navbar-start flex gap-2">
+			<button class="btn btn-ghost text-2xl font-bold text-primary px-2" on:click={() => setList(null)}>⚔️ {$t('app.title')}</button>
+			<div class="join">
+				<button class="btn btn-xs join-item {$locale === 'en' ? 'btn-active' : ''}" on:click={() => setLocale('en')}>EN</button>
+				<button class="btn btn-xs join-item {$locale === 'uk' ? 'btn-active' : ''}" on:click={() => setLocale('uk')}>UK</button>
+			</div>
 		</div>
 		<div class="navbar-center hidden lg:flex">
-			<p class="text-sm text-base-content/60">Binary Comparison Tier List Builder</p>
+			<p class="text-sm text-base-content/60">{$t('app.subtitle')}</p>
 		</div>
 		<div class="navbar-end">
 			{#if $activeList}
-				<button class="btn btn-sm btn-outline" on:click={() => setList(null)}>Back to My Lists</button>
+				<button class="btn btn-sm btn-outline" on:click={() => setList(null)}>{$t('app.back')}</button>
 			{/if}
 		</div>
 	</header>
@@ -164,26 +181,26 @@
 		{#if !$activeList}
 			<!-- Dashboard / List Selector -->
 			<section class="space-y-6">
-				<div class="flex justify-between items-center">
-					<h2 class="text-3xl font-bold">My Tier Lists</h2>
-					<div class="flex gap-2">
+				<div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+					<h2 class="text-3xl font-bold">{$t('dashboard.title')}</h2>
+					<div class="flex gap-2 w-full md:w-auto">
 						<input
 							type="text"
-							placeholder="New list name..."
-							class="input input-bordered"
+							placeholder={$t('dashboard.placeholder')}
+							class="input input-bordered flex-1 md:flex-none"
 							bind:value={newListName}
 							on:keydown={(e) => e.key === 'Enter' && createList()}
 						/>
 						<button class="btn btn-primary" on:click={createList} disabled={!newListName.trim()}>
-							Create New
+							{$t('dashboard.create')}
 						</button>
 					</div>
 				</div>
 
 				{#if $lists.length === 0}
 					<div class="card bg-base-100 shadow-xl p-12 text-center">
-						<p class="text-xl opacity-60">You haven't created any tier lists yet.</p>
-						<p class="opacity-50">Create your first one above!</p>
+						<p class="text-xl opacity-60">{$t('dashboard.empty')}</p>
+						<p class="opacity-50">{$t('dashboard.empty_hint')}</p>
 					</div>
 				{:else}
 					<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -212,10 +229,10 @@
 										</h3>
 									{/if}
 									<p class="text-xs opacity-50">
-										{list.items.length} items • Last updated {new Date(list.lastUpdated).toLocaleDateString()}
+										{list.items.length} {$t('dashboard.items')} • {$t('dashboard.updated')} {new Date(list.lastUpdated).toLocaleDateString()}
 									</p>
 									<div class="card-actions justify-end mt-4">
-										<button class="btn btn-primary btn-sm" on:click={() => setList(list.id)}>Open List</button>
+										<button class="btn btn-primary btn-sm" on:click={() => setList(list.id)}>{$t('dashboard.open')}</button>
 									</div>
 								</div>
 							</div>
@@ -229,43 +246,43 @@
 				<div class="flex items-center gap-4">
 					{#if $activeList}
 						<h2 class="text-3xl font-bold">{$activeList.name}</h2>
-						<button class="btn btn-ghost btn-sm" on:click={() => startEditList($activeList)}>✏️ Rename</button>
+						<button class="btn btn-ghost btn-sm" on:click={() => startEditList($activeList)}>{$t('editor.rename')}</button>
 					{/if}
 				</div>
 
 				<!-- Item Management Section -->
 				<section class="card bg-base-100 shadow-xl">
 					<div class="card-body">
-						<h2 class="card-title text-xl">📋 Items to Rank</h2>
+						<h2 class="card-title text-xl">📋 {$t('editor.items_title')}</h2>
 
 						<!-- Add Item Form -->
 						<div class="flex gap-2 mb-4">
 							<input
 								type="text"
-								placeholder="Enter item name..."
+								placeholder={$t('editor.item_placeholder')}
 								class="input input-bordered flex-1"
 								bind:value={newItemName}
 								on:keydown={(e) => e.key === 'Enter' && addItem()}
 							/>
 							<button class="btn btn-primary" on:click={addItem} disabled={!newItemName.trim()}>
-								Add Item
+								{$t('editor.add_item')}
 							</button>
 						</div>
 
 						<!-- Items List -->
 						{#if $activeList.items.length === 0}
 							<div class="alert alert-info">
-								<span>Add at least 2 items to start comparing them!</span>
+								<span>{$t('editor.min_items')}</span>
 							</div>
 						{:else}
 							<div class="overflow-x-auto">
 								<table class="table table-zebra">
 									<thead>
 										<tr>
-											<th>Item</th>
-											<th class="text-center">Wins</th>
-											<th class="text-center">Losses</th>
-											<th class="text-right">Actions</th>
+											<th>{$t('editor.table_item')}</th>
+											<th class="text-center">{$t('editor.table_wins')}</th>
+											<th class="text-center">{$t('editor.table_losses')}</th>
+											<th class="text-right">{$t('editor.table_actions')}</th>
 										</tr>
 									</thead>
 									<tbody>
@@ -316,9 +333,9 @@
 				{#if $activeList.items.length >= 2}
 					<section class="card bg-base-100 shadow-xl">
 						<div class="card-body">
-							<h2 class="card-title text-xl">⚔️ Binary Comparison</h2>
+							<h2 class="card-title text-xl">⚔️ {$t('compare.title')}</h2>
 							<p class="text-base-content/60 text-sm mb-4">
-								{$pendingComparisons.length} comparisons remaining
+								{$pendingComparisons.length} {$t('compare.remaining')}
 							</p>
 
 							{#if comparisonItemA && comparisonItemB}
@@ -351,12 +368,15 @@
 
 								<div class="flex justify-center mt-4">
 									<button class="btn btn-ghost btn-sm" on:click={skipComparison}>
-										Skip this comparison →
+										{$t('compare.skip')} →
 									</button>
 								</div>
 							{:else}
-								<div class="alert alert-success">
-									<span>🎉 All comparisons complete! Check the tier list below.</span>
+								<div class="alert alert-success flex justify-between items-center">
+									<span>🎉 {$t('compare.complete')}</span>
+									<button class="btn btn-sm btn-ghost border-success-content/20 hover:bg-success-content/10" on:click={resetComparisons}>
+										🔄 {$t('compare.restart')}
+									</button>
 								</div>
 							{/if}
 						</div>
@@ -367,9 +387,9 @@
 				{#if $rankedItems.length > 0}
 					<section class="card bg-base-100 shadow-xl">
 						<div class="card-body">
-							<h2 class="card-title text-xl">🏆 Tier List</h2>
+							<h2 class="card-title text-xl">🏆 {$t('tierlist.title')}</h2>
 							<p class="text-base-content/60 text-sm mb-4">
-								Updates dynamically as you compare items. Tiebreaker: head-to-head result.
+								{$t('tierlist.hint')}
 							</p>
 
 							<div class="space-y-2">
