@@ -1,6 +1,9 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { items, rankedItems, pendingComparisons, lists, activeListId, activeList } from '$lib/store';
 	import type { RankedItem, List } from '$lib/types';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
 
 	let newItemName = '';
 	let editingItemId: string | null = null;
@@ -10,6 +13,25 @@
 	let newListName = '';
 	let editingListId: string | null = null;
 	let editingListName = '';
+
+	// Sync activeListId with query param
+	onMount(() => {
+		const listId = $page.url.searchParams.get('list');
+		if (listId) {
+			activeListId.set(listId);
+		}
+	});
+
+	function setList(id: string | null) {
+		activeListId.set(id);
+		const url = new URL(window.location.href);
+		if (id) {
+			url.searchParams.set('list', id);
+		} else {
+			url.searchParams.delete('list');
+		}
+		goto(url.pathname + url.search, { replaceState: true, keepFocus: true });
+	}
 
 	$: currentComparison = $pendingComparisons[currentComparisonIndex] ?? null;
 	$: itemMap = Object.fromEntries(($activeList?.items || []).map((item: any) => [item.id, item]));
@@ -30,7 +52,7 @@
 	function createList() {
 		const id = lists.createList(newListName);
 		newListName = '';
-		activeListId.set(id);
+		setList(id);
 	}
 
 	function startEditList(list: List) {
@@ -49,7 +71,7 @@
 		if (confirm('Are you sure you want to delete this list?')) {
 			lists.deleteList(id);
 			if ($activeListId === id) {
-				activeListId.set(null);
+				setList(null);
 			}
 		}
 	}
@@ -126,14 +148,14 @@
 	<!-- Header -->
 	<header class="navbar bg-base-100 shadow-md">
 		<div class="navbar-start">
-			<button class="btn btn-ghost text-2xl font-bold text-primary" on:click={() => activeListId.set(null)}>⚔️ TierDuel</button>
+			<button class="btn btn-ghost text-2xl font-bold text-primary" on:click={() => setList(null)}>⚔️ TierDuel</button>
 		</div>
 		<div class="navbar-center hidden lg:flex">
 			<p class="text-sm text-base-content/60">Binary Comparison Tier List Builder</p>
 		</div>
 		<div class="navbar-end">
 			{#if $activeList}
-				<button class="btn btn-sm btn-outline" on:click={() => activeListId.set(null)}>Back to My Lists</button>
+				<button class="btn btn-sm btn-outline" on:click={() => setList(null)}>Back to My Lists</button>
 			{/if}
 		</div>
 	</header>
@@ -180,7 +202,7 @@
 										</div>
 									{:else}
 										<h3 class="card-title justify-between">
-											<button class="text-left hover:text-primary transition-colors" on:click={() => activeListId.set(list.id)}>
+											<button class="text-left hover:text-primary transition-colors" on:click={() => setList(list.id)}>
 												{list.name}
 											</button>
 											<div class="flex opacity-0 group-hover:opacity-100 transition-opacity">
@@ -193,7 +215,7 @@
 										{list.items.length} items • Last updated {new Date(list.lastUpdated).toLocaleDateString()}
 									</p>
 									<div class="card-actions justify-end mt-4">
-										<button class="btn btn-primary btn-sm" on:click={() => activeListId.set(list.id)}>Open List</button>
+										<button class="btn btn-primary btn-sm" on:click={() => setList(list.id)}>Open List</button>
 									</div>
 								</div>
 							</div>
